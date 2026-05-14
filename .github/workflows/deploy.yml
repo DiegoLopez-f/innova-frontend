@@ -1,0 +1,45 @@
+name: CI/CD Frontend
+
+on:
+  push:
+    branches:
+      - deploy # El gatillo exigido por la rúbrica
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted # ¡Llama al agente que instalamos!
+
+    steps:
+      - name: 1. Descargar el código
+        uses: actions/checkout@v3
+
+      - name: 2. Configurar credenciales AWS (Secrets)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: 3. Conectar a Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: 4. Construir y Publicar Imagen en ECR (IE3)
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: innova-frontend
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: 5. Desplegar en Instancia EC2 (IE4)
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: innova-frontend
+          IMAGE_TAG: latest
+        run: |
+          docker stop innova_frontend || true
+          docker rm innova_frontend || true
+          docker run -d --name innova_frontend -p 80:8080 --restart unless-stopped $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
