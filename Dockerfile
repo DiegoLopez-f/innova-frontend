@@ -28,6 +28,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 #proxy
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+#comentario para prueba
 # Esta imagen de Nginx expone por defecto el puerto 8080 (los puertos menores a 1024 requieren root)
 EXPOSE 8080
 
